@@ -59,6 +59,8 @@ class PlacesViewController: ViewController, UISearchBarDelegate, ArticlePopoverV
     fileprivate var previouslySelectedArticlePlaceIdentifier: Int?
     fileprivate var didYouMeanSearch: PlaceSearch?
     fileprivate var searching: Bool = false
+    fileprivate var coordinateValidator: CoordinateValidator = .liveValue
+    
     // SINGLETONTODO
     fileprivate let imageController = MWKDataStore.shared().cacheController.imageCache
 
@@ -1937,6 +1939,28 @@ class PlacesViewController: ViewController, UISearchBarDelegate, ArticlePopoverV
         
         currentSearch = nil // will cause the default search to perform after re-centering
         recenterOnUserLocation(self)
+    }
+    
+    @objc public func redirectToLocation(_ dictionary: NSDictionary) {
+        do {
+            let coordinate = try coordinateValidator.extract(dictionary)
+            guard
+                try coordinateValidator.isLatitudeValid(coordinate.latitude),
+                try coordinateValidator.isLongitudeValid(coordinate.longitude)
+            else { return }
+            
+            let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+            zoomAndPanMapView(toLocation: location)
+        } catch {
+            if let error = error as? CoordinateValidator.ValidationError {
+                if case .keyNotFound = error { return }
+                
+                // TODO: provide localized texts
+                wmf_showAlertWithMessage(error.description)
+            } else {
+                debugPrint(error.localizedDescription)
+            }
+        }
     }
     
     @objc public func showArticleURL(_ articleURL: URL) {
