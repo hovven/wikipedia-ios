@@ -59,18 +59,47 @@ __attribute__((annotate("returns_localized_nsstring"))) static inline NSString *
     return activity;
 }
 
++ (instancetype)wmf_locationActivityWithName:(NSString *)pageName
+                                     latitude:(CLLocationDegrees)latitude
+                                    longitude:(CLLocationDegrees)longitude {
+    NSUserActivity *activity = [self wmf_activityWithType:[pageName lowercaseString]];
+    activity.title = wmf_localizationNotNeeded(pageName);
+    activity.userInfo = @{@"WMFPage": pageName, @"lat": @(latitude), @"long": @(longitude)};
+    
+    return activity;
+}
+
 + (instancetype)wmf_placesActivityWithURL:(NSURL *)activityURL {
     NSURLComponents *components = [NSURLComponents componentsWithURL:activityURL resolvingAgainstBaseURL:NO];
     NSURL *articleURL = nil;
+    CLLocationDegrees latitude = 0.0;
+    CLLocationDegrees longitude = 0.0;
+    
     for (NSURLQueryItem *item in components.queryItems) {
         if ([item.name isEqualToString:@"WMFArticleURL"]) {
             NSString *articleURLString = item.value;
             articleURL = [NSURL URLWithString:articleURLString];
             break;
+        } 
+        
+        if ([item.name isEqualToString:@"lat"]) {
+            latitude = [item.value doubleValue];
+            continue;
+        }
+        
+        if ([item.name isEqualToString:@"lon"]) {
+            longitude = [item.value doubleValue];
+            continue;
         }
     }
+    
     NSUserActivity *activity = [self wmf_pageActivityWithName:@"Places"];
-    activity.webpageURL = articleURL;
+    
+    if (latitude != 0.0 && longitude != 0.0) {
+        activity.userInfo = @{@"WMFPage": @"Places", @"lat": @(latitude), @"lon": @(longitude)};
+    } else {
+        activity.webpageURL = articleURL;
+    }
     return activity;
 }
 
